@@ -2,22 +2,28 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { StatusCard } from '../components/StatusCard';
-import { LineChartComponent } from '../components/LineChartComponent'; // NOVO: Import do gráfico
-import { api, Estacao } from '../services/api';
+import { LineChartComponent } from '../components/LineChartComponent';
+import { api, Estacao, Previsao } from '../services/api'; // Importa o tipo Previsao
 
 export const DashboardScreen: React.FC = () => {
     const [leitura, setLeitura] = useState<Estacao | null>(null);
-    const [historico, setHistorico] = useState<number[]>([]); // NOVO: Array de níveis
+    const [historico, setHistorico] = useState<number[]>([]);
+    const [previsao, setPrevisao] = useState<Previsao | null>(null); // NOVO: Estado para a previsão
     const [loading, setLoading] = useState(true);
     const [apiOffline, setApiOffline] = useState(false);
 
-    const carregarLeitura = async () => {
+    const carregarDados = async () => {
         try {
             setApiOffline(false);
-            const dados = await api.getUltimaLeitura();
-            setLeitura(dados);
-            // Adiciona a leitura inicial ao histórico
-            setHistorico([dados.nivelAgua]);
+            // Busca a leitura e a previsão ao mesmo tempo
+            const [dadosLeitura, dadosPrevisao] = await Promise.all([
+                api.getUltimaLeitura(),
+                api.getPrevisao()
+            ]);
+            
+            setLeitura(dadosLeitura);
+            setPrevisao(dadosPrevisao);
+            setHistorico([dadosLeitura.nivelAgua]);
         } catch (error) {
             console.error(error);
             setApiOffline(true);
@@ -27,7 +33,7 @@ export const DashboardScreen: React.FC = () => {
     };
 
     useEffect(() => {
-        carregarLeitura();
+        carregarDados();
     }, []);
 
     const handleSimular = async () => {
@@ -35,7 +41,6 @@ export const DashboardScreen: React.FC = () => {
             setLoading(true);
             const novaLeitura = await api.simularLeitura();
             setLeitura(novaLeitura);
-            // NOVO: Adiciona o novo nível ao histórico e mantém só os últimos 10
             setHistorico(prev => [...prev, novaLeitura.nivelAgua].slice(-10));
             setApiOffline(false);
         } catch (error) {
@@ -57,23 +62,19 @@ export const DashboardScreen: React.FC = () => {
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.titulo}>Horta Inteligente</Text>
                 <Text style={styles.subtitulo}>Painel de Controle - Smart Station</Text>
             </View>
 
-            {/* Aviso de API Offline */}
             {apiOffline && (
                 <View style={styles.apiOfflineCard}>
                     <Text style={styles.apiOfflineText}>⚠️ API Offline: Não foi possível conectar ao servidor.</Text>
                 </View>
             )}
 
-            {/* Gráfico de Linha (NOVO) */}
             <LineChartComponent dados={historico} />
 
-            {/* Cards de Status */}
             {leitura ? (
                 <>
                     <StatusCard
@@ -97,6 +98,19 @@ export const DashboardScreen: React.FC = () => {
                         status={leitura.status as any}
                         icone="⚡"
                     />
+
+                    {/* NOVO: Card de Previsão da IA */}
+                    {previsao && (
+                        <View style={styles.previsaoCard}>
+                            <Text style={styles.previsaoTitle}>🤖 Previsão (IA) para a Próxima Hora</Text>
+                            <Text style={styles.previsaoValor}>
+                                Consumo: {previsao.previsao_consumo_proxima_hora.toFixed(2)} kWh
+                            </Text>
+                            <Text style={styles.previsaoSub}>
+                                Perfil de Operação: {previsao.descricao_cluster_atual}
+                            </Text>
+                        </View>
+                    )}
                 </>
             ) : (
                 !apiOffline && (
@@ -104,7 +118,6 @@ export const DashboardScreen: React.FC = () => {
                 )
             )}
 
-            {/* Botões de Ação */}
             <View style={styles.acoes}>
                 <TouchableOpacity style={styles.botaoPrimario} onPress={handleSimular} disabled={loading}>
                     <Text style={styles.textoBotao}>{loading ? 'Simulando...' : 'Simular Leitura'}</Text>
@@ -128,6 +141,10 @@ const styles = StyleSheet.create({
     apiOfflineCard: { backgroundColor: '#FFEBEE', padding: 16, borderRadius: 8, marginBottom: 16, borderWidth: 1, borderColor: '#F44336' },
     apiOfflineText: { color: '#D32F2F', fontWeight: 'bold', textAlign: 'center' },
     emptyText: { textAlign: 'center', color: '#666', marginTop: 20, fontSize: 16 },
+    previsaoCard: { backgroundColor: '#E3F2FD', padding: 16, borderRadius: 12, marginTop: 16, borderLeftWidth: 6, borderLeftColor: '#2196F3', elevation: 2 },
+    previsaoTitle: { fontSize: 16, fontWeight: 'bold', color: '#1565C0', marginBottom: 8 },
+    previsaoValor: { fontSize: 22, fontWeight: 'bold', color: '#0D47A1' },
+    previsaoSub: { fontSize: 14, color: '#555', marginTop: 4 },
     acoes: { marginTop: 20 },
     botaoPrimario: { backgroundColor: '#2E7D32', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 12, elevation: 3 },
     textoBotao: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },

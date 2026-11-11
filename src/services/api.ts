@@ -12,6 +12,12 @@ export type Estacao = {
     dataHora: string;
 };
 
+export type Previsao = {
+    previsao_consumo_proxima_hora: number;
+    cluster_atual: number;
+    descricao_cluster_atual: string;
+};
+
 export const api = {
     // Busca a última leitura
     getUltimaLeitura: async (): Promise<Estacao> => {
@@ -26,6 +32,13 @@ export const api = {
             method: 'POST',
         });
         if (!response.ok) throw new Error('Erro ao simular leitura');
+        return response.json();
+    },
+
+    // NOVO: Buscar previsão
+    getPrevisao: async (): Promise<Previsao> => {
+        const response = await fetch(`${API_URL}/previsao`);
+        if (!response.ok) throw new Error('Erro ao buscar previsão');
         return response.json();
     }
 };
