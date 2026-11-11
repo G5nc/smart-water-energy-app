@@ -2,9 +2,8 @@
 
 Aplicativo mobile em React Native para monitoramento da estação de água e energia da Horta Inteligente.
 
-## Integrantes
+## Integrante
 - Gustavo Nobre Coppola (RM561423)
-- Pedro Sinnes martinez (RM566017)
 
 ## Funcionalidades
 - Dashboard com níveis, vazão e consumo.
